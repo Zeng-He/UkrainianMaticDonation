@@ -2,41 +2,29 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./DonationStatusTracker.sol";
+import "./DonorTracker.sol";
 
-contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTracker {
+contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTracker, DonorTracker {
     // TODO Add change max cap function (multisig) (event) - new contract
     // TODO Add change timelimit function (multisig) (event) - new contract
     // TODO Add whitelist wallet function (multisig) (event) - new contract
-    // TODO Add renounce ownership after fundraising started
-    // TODO Add way to send money back to donors - probably let them withdraw themselves
-    // TODO determine how timelimit can be executed - new contract
+    // TODO determine how timelimit can be executed - new contract - check StateMachine.sol
     // TODO Add some way to check and update status related to external contracts
-    // TODO Add DonorTracker contract
-
-    // Safety first :)
-    using SafeMath for uint256;
+    //      it could be public function in the DonationStatusTracker contract that..
+    //      checks ALL statuses calling the other contracts
 
     // Address where funds are collected
-    address payable private _destinationWallet;
+    address payable private _destinationWallet; // this could go in a different contract
 
     // Owners required to sign changes
-    mapping (address => bool) private _signers; // this could go in a different contract
-
-    // Donors who send tokens
-    mapping (address => uint256) private _donors; // this could go in a different contract
+    // mapping (address => bool) private _signers; // this could go in a different contract
 
     //Contact Balance.. maybe this not needed. address(this).balance is the same
     //uint private _balance;
 
-    /**
-     * Event for donation logging
-     * @param donor who sent the tokens
-     * @param amount amount of tokens sent
-     */
-    event TokensDonated(address indexed donor, uint256 amount);
+    uint private _creationTime = block.timestamp;
 
     /**
      * Event for dontation withdrawal
@@ -45,10 +33,10 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
      */
     event DontationWithdrawal(address indexed beneficiary, uint256 amount);
 
-    //TODO receive a list of addresses to sign
+    // TODO receive multisig contracts to read different values
     constructor() 
     {
-        //TODO allocate list of addresses to _signers
+        
     }
 
     /**
@@ -56,14 +44,33 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
      * Note that it could be necessary to add an extra function to use
      * the nonReentrant modifier
      */
-    receive () external nonReentrant payable {
-        require(_status == DonationStatus.RECEIVING_PAYMENTS, "This contract is not acepting payments atm");
-        //_balance = _balance.add(msg.value);
-        _donors[address(msg.sender)] = _donors[address(msg.sender)].add(msg.value);
-        emit TokensDonated(address(msg.sender), msg.value);
+    receive () external nonReentrant statusIs(DonationStatus.RECEIVING_PAYMENTS) payable {
+        // TODO Move this to StatusTracker and convert the ifs to modifiers
+        // if(TimeLimit.isTimeLimitReached(_creationTime)) {
+        //     setStatus(DonationStatus.TIMELIMIT_REACHED);
+        //     //revert("Time limit reached!"); can't revert as this will undo the status change
+        // }
+        // if(MaxCap.isMaxCapReached(address(this).balance)) {
+        //     setStatus(DonationStatus.GOAL_REACHED);
+        // }
+        registerDonation();
     }
 
-    //TODO add fallback function
+    /**
+     * @dev fallback function
+     * Note that it could be necessary to add an extra function to use
+     * the nonReentrant modifier
+     */
+    fallback() external nonReentrant statusIs(DonationStatus.RECEIVING_PAYMENTS) payable {
+        // if(TimeLimit.isTimeLimitReached(_creationTime)) {
+        //     setStatus(DonationStatus.TIMELIMIT_REACHED);
+        //     //revert("Time limit reached!"); can't revert as this will undo the status change
+        // }
+        // else if(MaxCap.isMaxCapReached(address(this).balance)) {
+        //     setStatus(DonationStatus.GOAL_REACHED);
+        // }
+        registerDonation();
+    }
 
     /**
      * @return the address where funds are collected.
@@ -79,24 +86,37 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
         return address(this).balance;
     }
 
+    /*
+    * Donation withdrawal function
+    * Allows donors to withdraw all their funds
+    */
+    function withdrawMyFunds() isDonor public {
+        uint256 amount = getDonorAmount(msg.sender);
+        payable(msg.sender).transfer(amount);
+        emit DontationWithdrawal(msg.sender, amount);
+
+        //Destroy the contract once the fundraising is done and no money is left
+        if(isFundraisingDone() && address(this).balance == 0) {
+            selfdestruct(payable(0)); // yeah! burning bby!.. I guess
+        }
+    }
+
     /**
-     * @dev Source of tokens.
-     * Call this for token delivery. It could be:
-     * Fundraising completed: Deliver all the token amount to one address.
-     * Fundraising failed: Send back all the respective tokens to its owners.
+    * @dev Emergency stop in case that something goes wrong
+    */
+    function emergencyStop() onlyOwner statusIs(DonationStatus.RECEIVING_PAYMENTS) public {
+        setStatus(DonationStatus.EMERGENCY_STOP);
+        renounceOwnership(); // :(
+    }
+
+    /**
+     * @dev Source of funds.
+     * Call this for token delivery when the fundraising is completed
+     * Deliver all the funds to the beneficiary address.
      */
     function _deliverTokens() private {
-        // if(address(this).balance >= _maxCap)
-        if(true){
-            //_destinationWallet.transfer(address(this).balance);
-            selfdestruct(_destinationWallet);
-            _status = DonationStatus.DONATION_CONCLUDE;
-            //emit event
-        } else {
-            //send funds or allow them to withdraw?
-            _status = DonationStatus.TIMELIMIT_REACHED;
-            selfdestruct(_destinationWallet); // should send zero
-            //emit event
-        }
+        emit DontationWithdrawal(_destinationWallet, address(this).balance);
+        setStatus(DonationStatus.GOAL_REACHED);
+        /*Hardwired to*/selfdestruct(_destinationWallet);
     }
 }
