@@ -48,12 +48,14 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
         // TODO Move this to StatusTracker and convert the ifs to modifiers
         // if(TimeLimit.isTimeLimitReached(_creationTime)) {
         //     setStatus(DonationStatus.TIMELIMIT_REACHED);
-        //     //revert("Time limit reached!"); can't revert as this will undo the status change
         // }
         // if(MaxCap.isMaxCapReached(address(this).balance)) {
         //     setStatus(DonationStatus.GOAL_REACHED);
         // }
         registerDonation();
+        if(isFundraisingDone()) { //timelimit or maxcap
+            _deliverTokens();
+        }
     }
 
     /**
@@ -62,6 +64,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
      * the nonReentrant modifier
      */
     fallback() external nonReentrant statusIs(DonationStatus.RECEIVING_PAYMENTS) payable {
+        // Probably just call receive.. but have to check the nonReentrant validation
         // if(TimeLimit.isTimeLimitReached(_creationTime)) {
         //     setStatus(DonationStatus.TIMELIMIT_REACHED);
         //     //revert("Time limit reached!"); can't revert as this will undo the status change
@@ -70,6 +73,9 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
         //     setStatus(DonationStatus.GOAL_REACHED);
         // }
         registerDonation();
+        if(isFundraisingDone()) { //timelimit or maxcap
+            _deliverTokens();
+        }
     }
 
     /**
@@ -97,7 +103,8 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
 
         //Destroy the contract once the fundraising is done and no money is left
         if(isFundraisingDone() && address(this).balance == 0) {
-            selfdestruct(payable(0)); // yeah! burning bby!.. I guess
+            setStatus(DonationStatus.FINISHED);
+            /*Hardwired to*/selfdestruct(payable(0)); // yeah! burning bby!.. I guess
         }
     }
 
@@ -116,7 +123,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
      */
     function _deliverTokens() private {
         emit DontationWithdrawal(_destinationWallet, address(this).balance);
-        setStatus(DonationStatus.GOAL_REACHED);
+        setStatus(DonationStatus.FINISHED);
         /*Hardwired to*/selfdestruct(_destinationWallet);
     }
 }
