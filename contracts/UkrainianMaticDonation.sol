@@ -3,16 +3,16 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./DonationStatusTracker.sol";
+import "./StateMachine.sol";
 import "./DonorTracker.sol";
 
-contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTracker, DonorTracker {
+contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, DonorTracker {
     // TODO Add change max cap function (multisig) (event) - new contract
     // TODO Add change timelimit function (multisig) (event) - new contract
     // TODO Add whitelist wallet function (multisig) (event) - new contract
     // TODO determine how timelimit can be executed - new contract - check StateMachine.sol
     // TODO Add some way to check and update status related to external contracts
-    //      it could be public function in the DonationStatusTracker contract that..
+    //      it could be public function in the StateMachine contract that..
     //      checks ALL statuses calling the other contracts
 
     // Address where funds are collected
@@ -103,7 +103,6 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
 
         //Destroy the contract once the fundraising is done and no money is left
         if(isFundraisingDone() && address(this).balance == 0) {
-            setStatus(DonationStatus.FINISHED);
             /*Hardwired to*/selfdestruct(payable(0)); // yeah! burning bby!.. I guess
         }
     }
@@ -123,7 +122,6 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, DonationStatusTrack
      */
     function _deliverTokens() private {
         emit DontationWithdrawal(_destinationWallet, address(this).balance);
-        setStatus(DonationStatus.FINISHED);
         /*Hardwired to*/selfdestruct(_destinationWallet);
     }
 }

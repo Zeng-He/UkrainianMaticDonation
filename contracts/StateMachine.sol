@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 // TODO rename to StateMachine
 // TODO this contract will talk to maxcap, timelimit and wallet whitelisting to update the status
 //      so, it has to know them and receive them in the constructor
-contract DonationStatusTracker {
+contract StateMachine {
 
     /**
      * Event for dontation withdrawal
@@ -18,8 +18,7 @@ contract DonationStatusTracker {
         RECEIVING_PAYMENTS,
         GOAL_REACHED,
         TIMELIMIT_REACHED,
-        EMERGENCY_STOP,
-        FINISHED
+        EMERGENCY_STOP
     }
 
     DonationStatus internal _status;
@@ -46,7 +45,6 @@ contract DonationStatusTracker {
         // I could use something like _status > DonationStatus.RECEIVING_PAYMENTS
         return _status == DonationStatus.GOAL_REACHED 
             || _status == DonationStatus.TIMELIMIT_REACHED 
-            || _status == DonationStatus.EMERGENCY_STOP
-            || _status == DonationStatus.FINISHED;
+            || _status == DonationStatus.EMERGENCY_STOP;
     }
 }
