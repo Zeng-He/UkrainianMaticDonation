@@ -23,6 +23,7 @@ contract StateMachine {
 
     DonationStatus internal _status;
 
+    //receive the addresses of TL, MC and WA contracts
     constructor() {
         _status = DonationStatus.AWAITING_ADDRESS_WHITELIST;
     }
@@ -39,6 +40,30 @@ contract StateMachine {
     function setStatus(DonationStatus newStatus) internal {
         _status = newStatus;
         emit SatusChange(newStatus);
+    }
+
+    function checkStatus(uint256 balance, uint256 creationTime) internal {/*
+        // if(AWAITING_ADDRESS_WHITELIST && true)  // call WA contract
+        // else if(AWAITING_ADDRESS_CONFIRMATION && true) //call WA contract
+        // else if(RECEIVING_PAYMENTS && true) //check time limit hit
+        // else if(RECEIVING_PAYMENTS && true) //check max cap reached
+        // else if(GOAL_REACHED) && //otra cosa
+        // else if(TIMELIMIT_REACHED) && //otra cosa
+        // else if(EMERGENCY_STOP) && //otra cosa*/
+    }
+
+    modifier isTimeLimitReached(uint256 creationTime) {
+        //if(TimeLimit.isTimeLimitReached(_creationTime)) {
+        //     setStatus(DonationStatus.TIMELIMIT_REACHED);
+        //}
+        _;
+    }
+
+    modifier isMaxCapReached(uint256 amount) {
+        //if(MaxCap.isMaxCapReached(address(this).balance)) {
+        //     setStatus(DonationStatus.GOAL_REACHED);
+        //}
+        _;
     }
 
     function isFundraisingDone() public view returns(bool) {

@@ -18,12 +18,6 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     // Address where funds are collected
     address payable private _destinationWallet; // this could go in a different contract
 
-    // Owners required to sign changes
-    // mapping (address => bool) private _signers; // this could go in a different contract
-
-    //Contact Balance.. maybe this not needed. address(this).balance is the same
-    //uint private _balance;
-
     uint private _creationTime = block.timestamp;
 
     /**
@@ -44,14 +38,13 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
      * Note that it could be necessary to add an extra function to use
      * the nonReentrant modifier
      */
-    receive () external nonReentrant statusIs(DonationStatus.RECEIVING_PAYMENTS) payable {
-        // TODO Move this to StatusTracker and convert the ifs to modifiers
-        // if(TimeLimit.isTimeLimitReached(_creationTime)) {
-        //     setStatus(DonationStatus.TIMELIMIT_REACHED);
-        // }
-        // if(MaxCap.isMaxCapReached(address(this).balance)) {
-        //     setStatus(DonationStatus.GOAL_REACHED);
-        // }
+    receive () external 
+        nonReentrant 
+        statusIs(DonationStatus.RECEIVING_PAYMENTS) 
+        isMaxCapReached(_creationTime)
+        isTimeLimitReached(address(this).balance)
+        payable
+    {
         registerDonation();
         if(isFundraisingDone()) { //timelimit or maxcap
             _deliverTokens();
@@ -63,19 +56,22 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
      * Note that it could be necessary to add an extra function to use
      * the nonReentrant modifier
      */
-    fallback() external nonReentrant statusIs(DonationStatus.RECEIVING_PAYMENTS) payable {
+    fallback() external 
+        nonReentrant 
+        statusIs(DonationStatus.RECEIVING_PAYMENTS) 
+        isMaxCapReached(_creationTime)
+        isTimeLimitReached(address(this).balance)
+        payable
+    {
         // Probably just call receive.. but have to check the nonReentrant validation
-        // if(TimeLimit.isTimeLimitReached(_creationTime)) {
-        //     setStatus(DonationStatus.TIMELIMIT_REACHED);
-        //     //revert("Time limit reached!"); can't revert as this will undo the status change
-        // }
-        // else if(MaxCap.isMaxCapReached(address(this).balance)) {
-        //     setStatus(DonationStatus.GOAL_REACHED);
-        // }
         registerDonation();
         if(isFundraisingDone()) { //timelimit or maxcap
             _deliverTokens();
         }
+    }
+
+    function checkStatus() public {
+        super.checkStatus(address(this).balance, _creationTime);
     }
 
     /**
@@ -88,7 +84,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     /**
      * @return the amount of donations raised.
      */
-    function donationRaised() public view returns (uint256) {
+    function donationsRaised() public view returns (uint256) {
         return address(this).balance;
     }
 
@@ -96,8 +92,8 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     * Donation withdrawal function
     * Allows donors to withdraw all their funds
     */
-    function withdrawMyFunds() isDonor public {
-        uint256 amount = getDonorAmount(msg.sender);
+    function withdrawMyFunds() isDonor nonReentrant public {
+        uint256 amount = liquidateDonorFunds(msg.sender);
         payable(msg.sender).transfer(amount);
         emit DontationWithdrawal(msg.sender, amount);
 
@@ -105,6 +101,13 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
         if(isFundraisingDone() && address(this).balance == 0) {
             /*Hardwired to*/selfdestruct(payable(0)); // yeah! burning bby!.. I guess
         }
+    }
+
+    /**
+    * Allows donors to check their funds
+    */
+    function getMyFunds() public isDonor view returns(uint256) {
+        return getDonorAmount(msg.sender);
     }
 
     /**

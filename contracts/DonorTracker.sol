@@ -27,8 +27,10 @@ contract DonorTracker {
         return _donors[donorAddress];
     }
 
-    function liquidateDonorFunds(address donorAddress) internal {
+    function liquidateDonorFunds(address donorAddress) internal returns(uint256) {
+        uint256 amount = _donors[donorAddress];
         _donors[donorAddress] = 0;
+        return amount;
     }
 
     function registerDonation () internal {

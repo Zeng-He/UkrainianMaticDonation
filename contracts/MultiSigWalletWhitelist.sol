@@ -28,8 +28,8 @@ contract MultiSigWalletWhitelist {
         _;
     }
 
-    modifier notExecuted(uint _txIndex) {
-        require(!transactions[_txIndex].executed, "tx already executed");
+    modifier notWhitelisted(uint _txIndex) {
+        // require(!transactions[_txIndex].executed, "tx already executed");
         _;
     }
 
