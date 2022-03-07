@@ -13,7 +13,7 @@ contract DonorTracker {
      * @param donor who sent the money
      * @param amount amount of tokens sent
      */
-    event Donation(address indexed donor, uint256 amount);
+    event Donation(address indexed donor, uint256 amount, uint256 balance);
 
     // Donors who send money
     mapping (address => uint256) private _donors;
@@ -33,6 +33,6 @@ contract DonorTracker {
 
     function registerDonation () internal {
         _donors[address(msg.sender)] = _donors[address(msg.sender)].add(msg.value);
-        emit Donation(address(msg.sender), msg.value);
+        emit Donation(address(msg.sender), msg.value, address(this).balance);
     }
 }
