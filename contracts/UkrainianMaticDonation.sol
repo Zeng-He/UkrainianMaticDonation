@@ -5,20 +5,17 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./StateMachine.sol";
 import "./DonorTracker.sol";
+import "./MultiSigWalletWhitelist.sol";
 
 contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, DonorTracker {
     // TODO Add change max cap function (multisig) (event) - new contract
     // TODO Add change timelimit function (multisig) (event) - new contract
-    // TODO Add whitelist wallet function (multisig) (event) - new contract
     // TODO determine how timelimit can be executed - new contract - check StateMachine.sol
-    // TODO Add some way to check and update status related to external contracts
-    //      it could be public function in the StateMachine contract that..
-    //      checks ALL statuses calling the other contracts
-
-    // Address where funds are collected
-    address payable private _destinationWallet; // this could go in a different contract
+    //      probably set timelimit a week after the wallet is confirmed :)
 
     uint private _creationTime = block.timestamp;
+
+    MultiSigWalletWhitelist private _multisigWallet;
 
     /**
      * Event for dontation withdrawal
@@ -28,9 +25,10 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     event DontationWithdrawal(address indexed beneficiary, uint256 amount);
 
     // TODO receive multisig contracts to read different values
-    constructor() 
+    constructor(MultiSigWalletWhitelist multiSigWallet) 
+    StateMachine(multiSigWallet)
     {
-        
+        _multisigWallet = multiSigWallet;
     }
 
     /**
@@ -70,6 +68,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
         }
     }
 
+    /** Used to update status through state machine */
     function checkStatus() public {
         super.checkStatus(address(this).balance, _creationTime);
     }
@@ -77,8 +76,8 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     /**
      * @return the address where funds are collected.
      */
-    function wallet() public view returns (address payable) {
-        return _destinationWallet;
+    function wallet() public view returns (address) {
+        return _multisigWallet.destinationWalletConfirmed();
     }
 
     /**
@@ -124,7 +123,8 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
      * Deliver all the funds to the beneficiary address.
      */
     function _deliverTokens() private {
-        emit DontationWithdrawal(_destinationWallet, address(this).balance);
-        /*Hardwired to*/selfdestruct(_destinationWallet);
+        require(wallet() != address(0), "The destination wallet is not set"); // Should not happen
+        emit DontationWithdrawal(wallet(), address(this).balance);
+        /*Hardwired to*/selfdestruct(payable(wallet()));
     }
 }

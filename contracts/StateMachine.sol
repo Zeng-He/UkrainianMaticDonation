@@ -1,7 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// TODO rename to StateMachine
+import "./MultiSigWalletWhitelist.sol";
+
 // TODO this contract will talk to maxcap, timelimit and wallet whitelisting to update the status
 //      so, it has to know them and receive them in the constructor
 contract StateMachine {
@@ -23,9 +24,12 @@ contract StateMachine {
 
     DonationStatus internal _status;
 
-    //receive the addresses of TL, MC and WA contracts
-    constructor() {
+    MultiSigWalletWhitelist private _multisigWallet;
+
+    //receive the addresses of TL and MC contracts
+    constructor(MultiSigWalletWhitelist multisigWallet) {
         _status = DonationStatus.AWAITING_ADDRESS_WHITELIST;
+        _multisigWallet = multisigWallet;
     }
 
     modifier statusIs(DonationStatus status) {
@@ -42,25 +46,33 @@ contract StateMachine {
         emit SatusChange(newStatus);
     }
 
-    function checkStatus(uint256 balance, uint256 creationTime) internal {/*
-        // if(AWAITING_ADDRESS_WHITELIST && true)  // call WA contract
-        // else if(AWAITING_ADDRESS_CONFIRMATION && true) //call WA contract
-        // else if(RECEIVING_PAYMENTS && true) //check time limit hit
-        // else if(RECEIVING_PAYMENTS && true) //check max cap reached
-        // else if(GOAL_REACHED) && //otra cosa
-        // else if(TIMELIMIT_REACHED) && //otra cosa
-        // else if(EMERGENCY_STOP) && //otra cosa*/
+    function checkStatus(uint256 balance, uint256 creationTime) internal {
+        if(_status == DonationStatus.AWAITING_ADDRESS_WHITELIST &&
+           _multisigWallet.getStatus() == WalletConfirmationStatus.AWAITING_ADDRESS_CONFIRMATION)
+           setStatus(DonationStatus.AWAITING_ADDRESS_CONFIRMATION);
+        
+        else if(_status == DonationStatus.AWAITING_ADDRESS_CONFIRMATION &&
+           _multisigWallet.getStatus() == WalletConfirmationStatus.ADDRESS_CONFIRMED)
+           setStatus(DonationStatus.RECEIVING_PAYMENTS);
+
+        // else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
+        //    _maxCap.isMaxCapReached(balance))
+        //    setStatus(DonationStatus.GOAL_REACHED);
+
+        // else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
+        //    _timelimit.isTimelimitReached(creationTime))
+        //    setStatus(DonationStatus.TIMELIMIT_REACHED);
     }
 
     modifier isTimeLimitReached(uint256 creationTime) {
-        //if(TimeLimit.isTimeLimitReached(_creationTime)) {
+        //if(_timelimit.isTimeLimitReached(_creationTime)) {
         //     setStatus(DonationStatus.TIMELIMIT_REACHED);
         //}
         _;
     }
 
     modifier isMaxCapReached(uint256 amount) {
-        //if(MaxCap.isMaxCapReached(address(this).balance)) {
+        //if(_maxCap.isMaxCapReached(address(this).balance)) {
         //     setStatus(DonationStatus.GOAL_REACHED);
         //}
         _;
