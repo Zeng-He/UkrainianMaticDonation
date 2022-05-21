@@ -110,7 +110,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     }
 
     /**
-    * @dev Emergency stop in case that something goes wrong
+    * Emergency stop in case that something goes wrong
     */
     function emergencyStop() onlyOwner statusIs(DonationStatus.RECEIVING_PAYMENTS) public {
         setStatus(DonationStatus.EMERGENCY_STOP);

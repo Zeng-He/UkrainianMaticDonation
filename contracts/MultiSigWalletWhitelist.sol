@@ -27,8 +27,8 @@ contract MultiSigWalletWhitelist {
     // holds signers signatures
     mapping(address => mapping(address => bool)) public signs;
 
-    // mapping from wallet => owner => bool
-    // holds signers signatures
+    // mapping from wallet => bool
+    // holds signatures count
     mapping(address => uint) public signCount;
 
     // Candidate Address where funds are collected, needs owner confirmation
