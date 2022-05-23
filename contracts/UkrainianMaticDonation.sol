@@ -6,9 +6,9 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./StateMachine.sol";
 import "./DonorTracker.sol";
 import "./MultiSigWalletWhitelist.sol";
+import "./MultiSigMaxCap.sol";
 
 contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, DonorTracker {
-    // TODO Add change max cap function (multisig) (event) - new contract
     // TODO Add change timelimit function (multisig) (event) - new contract
     // TODO determine how timelimit can be executed - new contract - check StateMachine.sol
     //      probably set timelimit a week after the wallet is confirmed :)
@@ -16,6 +16,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     uint private _creationTime = block.timestamp;
 
     MultiSigWalletWhitelist private _multisigWallet;
+    MultiSigMaxCap private _multiSigMaxCap;
 
     /**
      * Event for dontation withdrawal
@@ -25,10 +26,11 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     event DontationWithdrawal(address indexed beneficiary, uint256 amount);
 
     // TODO receive multisig contracts to read different values
-    constructor(MultiSigWalletWhitelist multiSigWallet) 
-    StateMachine(multiSigWallet)
+    constructor(MultiSigWalletWhitelist multiSigWallet, MultiSigMaxCap multiSigMaxCap) 
+    StateMachine(multiSigWallet, multiSigMaxCap)
     {
         _multisigWallet = multiSigWallet;
+        _multiSigMaxCap = multiSigMaxCap;
     }
 
     /**
@@ -39,8 +41,8 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     receive () external 
         nonReentrant 
         statusIs(DonationStatus.RECEIVING_PAYMENTS) 
-        isMaxCapReached(_creationTime)
-        isTimeLimitReached(address(this).balance)
+        isMaxCapReached(address(this).balance)
+        isTimeLimitReached(_creationTime)
         payable
     {
         registerDonation();
@@ -57,8 +59,8 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     fallback() external 
         nonReentrant 
         statusIs(DonationStatus.RECEIVING_PAYMENTS) 
-        isMaxCapReached(_creationTime)
-        isTimeLimitReached(address(this).balance)
+        isMaxCapReached(address(this).balance)
+        isTimeLimitReached(_creationTime)
         payable
     {
         // Probably just call receive.. but have to check the nonReentrant validation

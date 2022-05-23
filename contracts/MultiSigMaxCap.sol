@@ -28,7 +28,7 @@ contract MultiSigMaxCap {
     mapping(uint256 => uint) public signCount;
 
     // max cap selected
-    uint256 public selectedValue = 0;
+    uint256 public maxCap = 0;
 
     modifier onlySigners() {
         require(isSigner[msg.sender], "not a signer");
@@ -66,7 +66,7 @@ contract MultiSigMaxCap {
             isSigner[owner] = true;
         }
         numConfirmationsRequired = _numConfirmationsRequired;
-        selectedValue = initialValue;
+        maxCap = initialValue;
     }
 
     function signValue(uint256 proposedMaxCap)
@@ -82,7 +82,7 @@ contract MultiSigMaxCap {
 
         if (signCount[proposedMaxCap] == numConfirmationsRequired 
         && getStatus() == MaxCapConfirmationStatus.VALUE_NOT_CONFIRMED) {
-            selectedValue = proposedMaxCap;
+            maxCap = proposedMaxCap;
         }
     }
 
@@ -100,10 +100,17 @@ contract MultiSigMaxCap {
         emit RevokedConfirmation(msg.sender, proposedMaxCap);
     }
 
-    function getStatus() public view returns(MaxCapConfirmationStatus){
-        if (selectedValue == 0) 
+    function getStatus() public view returns(MaxCapConfirmationStatus) {
+        if (maxCap == 0) 
             return MaxCapConfirmationStatus.VALUE_NOT_CONFIRMED;
         else 
             return MaxCapConfirmationStatus.VALUE_CONFIRMED;
+    }
+
+    function isMaxCapReached(uint256 balance) public 
+        statusIs(MaxCapConfirmationStatus.VALUE_CONFIRMED) 
+        view returns(bool) 
+    {
+        return balance >= maxCap;
     }
 }

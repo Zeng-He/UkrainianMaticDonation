@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./MultiSigWalletWhitelist.sol";
+import "./MultiSigMaxCap.sol";
 
 // TODO this contract will talk to maxcap, timelimit and wallet whitelisting to update the status
 //      so, it has to know them and receive them in the constructor
@@ -25,11 +26,13 @@ contract StateMachine {
     DonationStatus internal _status;
 
     MultiSigWalletWhitelist private _multisigWallet;
+    MultiSigMaxCap private _multiSigMaxCap;
 
     //receive the addresses of TL and MC contracts
-    constructor(MultiSigWalletWhitelist multisigWallet) {
+    constructor(MultiSigWalletWhitelist multisigWallet, MultiSigMaxCap multiSigMaxCap) {
         _status = DonationStatus.AWAITING_ADDRESS_WHITELIST;
         _multisigWallet = multisigWallet;
+        _multiSigMaxCap = multiSigMaxCap;
     }
 
     modifier statusIs(DonationStatus status) {
@@ -55,9 +58,9 @@ contract StateMachine {
            _multisigWallet.getStatus() == WalletConfirmationStatus.ADDRESS_CONFIRMED)
            setStatus(DonationStatus.RECEIVING_PAYMENTS);
 
-        // else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
-        //    _maxCap.isMaxCapReached(balance))
-        //    setStatus(DonationStatus.GOAL_REACHED);
+        else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
+           _multiSigMaxCap.isMaxCapReached(balance))
+           setStatus(DonationStatus.GOAL_REACHED);
 
         // else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
         //    _timelimit.isTimelimitReached(creationTime))
@@ -71,10 +74,10 @@ contract StateMachine {
         _;
     }
 
-    modifier isMaxCapReached(uint256 amount) {
-        //if(_maxCap.isMaxCapReached(address(this).balance)) {
-        //     setStatus(DonationStatus.GOAL_REACHED);
-        //}
+    modifier isMaxCapReached(uint256 balance) {
+        if(_multiSigMaxCap.isMaxCapReached(balance)) {
+            setStatus(DonationStatus.GOAL_REACHED);
+        }
         _;
     }
 
