@@ -3,9 +3,8 @@ pragma solidity ^0.8.0;
 
 import "./MultiSigWalletWhitelist.sol";
 import "./MultiSigMaxCap.sol";
+import "./MultiSigTimeLimit.sol";
 
-// TODO this contract will talk to maxcap, timelimit and wallet whitelisting to update the status
-//      so, it has to know them and receive them in the constructor
 contract StateMachine {
 
     /**
@@ -27,12 +26,14 @@ contract StateMachine {
 
     MultiSigWalletWhitelist private _multisigWallet;
     MultiSigMaxCap private _multiSigMaxCap;
+    MultiSigTimeLimit private _multiSigTimeLimit;
 
     //receive the addresses of TL and MC contracts
-    constructor(MultiSigWalletWhitelist multisigWallet, MultiSigMaxCap multiSigMaxCap) {
+    constructor(MultiSigWalletWhitelist multisigWallet, MultiSigMaxCap multiSigMaxCap, MultiSigTimeLimit multiSigTimeLimit) {
         _status = DonationStatus.AWAITING_ADDRESS_WHITELIST;
         _multisigWallet = multisigWallet;
         _multiSigMaxCap = multiSigMaxCap;
+        _multiSigTimeLimit = multiSigTimeLimit;
     }
 
     modifier statusIs(DonationStatus status) {
@@ -49,28 +50,28 @@ contract StateMachine {
         emit SatusChange(newStatus);
     }
 
-    function checkStatus(uint256 balance, uint256 creationTime) internal {
+    function checkStatus(uint256 balance) internal {
         if(_status == DonationStatus.AWAITING_ADDRESS_WHITELIST &&
-           _multisigWallet.getStatus() == WalletConfirmationStatus.AWAITING_ADDRESS_CONFIRMATION)
+            _multisigWallet.getStatus() == WalletConfirmationStatus.AWAITING_ADDRESS_CONFIRMATION)
            setStatus(DonationStatus.AWAITING_ADDRESS_CONFIRMATION);
         
         else if(_status == DonationStatus.AWAITING_ADDRESS_CONFIRMATION &&
-           _multisigWallet.getStatus() == WalletConfirmationStatus.ADDRESS_CONFIRMED)
+                _multisigWallet.getStatus() == WalletConfirmationStatus.ADDRESS_CONFIRMED)
            setStatus(DonationStatus.RECEIVING_PAYMENTS);
 
         else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
-           _multiSigMaxCap.isMaxCapReached(balance))
+                _multiSigMaxCap.isMaxCapReached(balance))
            setStatus(DonationStatus.GOAL_REACHED);
 
-        // else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
-        //    _timelimit.isTimelimitReached(creationTime))
-        //    setStatus(DonationStatus.TIMELIMIT_REACHED);
+        else if(_status == DonationStatus.RECEIVING_PAYMENTS &&
+                _multiSigTimeLimit.isTimeLimitReached())
+           setStatus(DonationStatus.TIMELIMIT_REACHED);
     }
 
-    modifier isTimeLimitReached(uint256 creationTime) {
-        //if(_timelimit.isTimeLimitReached(_creationTime)) {
-        //     setStatus(DonationStatus.TIMELIMIT_REACHED);
-        //}
+    modifier isTimeLimitReached() {
+        if(_multiSigTimeLimit.isTimeLimitReached()) {
+            setStatus(DonationStatus.TIMELIMIT_REACHED);
+        }
         _;
     }
 

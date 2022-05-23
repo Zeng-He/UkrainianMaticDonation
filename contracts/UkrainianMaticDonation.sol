@@ -7,16 +7,14 @@ import "./StateMachine.sol";
 import "./DonorTracker.sol";
 import "./MultiSigWalletWhitelist.sol";
 import "./MultiSigMaxCap.sol";
+import "./MultiSigTimeLimit.sol";
 
 contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, DonorTracker {
-    // TODO Add change timelimit function (multisig) (event) - new contract
-    // TODO determine how timelimit can be executed - new contract - check StateMachine.sol
-    //      probably set timelimit a week after the wallet is confirmed :)
-
-    uint private _creationTime = block.timestamp;
+    //uint private _creationTime = block.timestamp; Not using this anymore
 
     MultiSigWalletWhitelist private _multisigWallet;
     MultiSigMaxCap private _multiSigMaxCap;
+    MultiSigTimeLimit private _multiSigTimeLimit;
 
     /**
      * Event for dontation withdrawal
@@ -25,12 +23,12 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
      */
     event DontationWithdrawal(address indexed beneficiary, uint256 amount);
 
-    // TODO receive multisig contracts to read different values
-    constructor(MultiSigWalletWhitelist multiSigWallet, MultiSigMaxCap multiSigMaxCap) 
-    StateMachine(multiSigWallet, multiSigMaxCap)
+    constructor(MultiSigWalletWhitelist multiSigWallet, MultiSigMaxCap multiSigMaxCap, MultiSigTimeLimit multiSigTimeLimit) 
+    StateMachine(multiSigWallet, multiSigMaxCap, multiSigTimeLimit)
     {
         _multisigWallet = multiSigWallet;
         _multiSigMaxCap = multiSigMaxCap;
+        _multiSigTimeLimit = multiSigTimeLimit;
     }
 
     /**
@@ -42,7 +40,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
         nonReentrant 
         statusIs(DonationStatus.RECEIVING_PAYMENTS) 
         isMaxCapReached(address(this).balance)
-        isTimeLimitReached(_creationTime)
+        isTimeLimitReached()
         payable
     {
         registerDonation();
@@ -60,7 +58,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
         nonReentrant 
         statusIs(DonationStatus.RECEIVING_PAYMENTS) 
         isMaxCapReached(address(this).balance)
-        isTimeLimitReached(_creationTime)
+        isTimeLimitReached()
         payable
     {
         // Probably just call receive.. but have to check the nonReentrant validation
@@ -72,7 +70,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
 
     /** Used to update status through state machine */
     function checkStatus() public {
-        super.checkStatus(address(this).balance, _creationTime);
+        super.checkStatus(address(this).balance);
     }
 
     /**
@@ -92,6 +90,7 @@ contract UkrainianMaticDonation is Ownable, ReentrancyGuard, StateMachine, Donor
     /*
     * Donation withdrawal function
     * Allows donors to withdraw all their funds
+    * Reentrancy and Cross-Reentrancy safe :)
     */
     function withdrawMyFunds() isDonor nonReentrant public {
         uint256 amount = liquidateDonorFunds(msg.sender);

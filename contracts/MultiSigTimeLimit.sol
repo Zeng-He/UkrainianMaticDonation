@@ -3,12 +3,19 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-enum MaxCapConfirmationStatus {
+enum TimeLimitConfirmationStatus {
     VALUE_NOT_CONFIRMED,
     VALUE_CONFIRMED 
 }
 
-contract MultiSigMaxCap {
+/**
+    TimeLimit Multi Signature contract
+    This contract is used for controlling the life-span of a contract
+    To set a time-limit value do not provide relative amount eg: 1 week
+    Instead send the absolute timestamp that block.timestamp 
+    should reach to finish contract execution
+ */
+contract MultiSigTimeLimit {
 
     // Safety first :)
     using SafeMath for uint256;
@@ -28,7 +35,7 @@ contract MultiSigMaxCap {
     mapping(uint256 => uint) public signCount;
 
     // max cap selected
-    uint256 public maxCap = 0;
+    uint256 public timeLimit = 0;
 
     modifier onlySigners() {
         require(isSigner[msg.sender], "not a signer");
@@ -45,7 +52,7 @@ contract MultiSigMaxCap {
         _;
     }
 
-    modifier statusIs(MaxCapConfirmationStatus _status) {
+    modifier statusIs(TimeLimitConfirmationStatus _status) {
         require(getStatus() == _status, "this function cannot be called at this time");
         _;
     }
@@ -56,6 +63,7 @@ contract MultiSigMaxCap {
             _numConfirmationsRequired > 0 && _numConfirmationsRequired <= _signers.length,
             "invalid number of required confirmations"
         );
+        require(initialValue > block.timestamp, "Invalid initial value");
 
         for (uint i = 0; i < _signers.length; i++) {
             address owner = _signers[i];
@@ -66,47 +74,48 @@ contract MultiSigMaxCap {
             isSigner[owner] = true;
         }
         numConfirmationsRequired = _numConfirmationsRequired;
-        maxCap = initialValue;
+        timeLimit = initialValue;
     }
 
-    function signValue(uint256 proposedMaxCap)
+    function signValue(uint256 proposedTimeLimit)
         public
         onlySigners
-        notSignedAlready(proposedMaxCap)
-        statusIs(MaxCapConfirmationStatus.VALUE_NOT_CONFIRMED)
+        notSignedAlready(proposedTimeLimit)
+        statusIs(TimeLimitConfirmationStatus.VALUE_NOT_CONFIRMED)
     {
-        signs[proposedMaxCap][msg.sender] = true;
-        signCount[proposedMaxCap] = signCount[proposedMaxCap].add(1);
+        require(proposedTimeLimit > block.timestamp, "Invalid initial value");
+        signs[proposedTimeLimit][msg.sender] = true;
+        signCount[proposedTimeLimit] = signCount[proposedTimeLimit].add(1);
 
-        emit ConfirmedValue(msg.sender, proposedMaxCap);
+        emit ConfirmedValue(msg.sender, proposedTimeLimit);
 
-        if (signCount[proposedMaxCap] == numConfirmationsRequired 
-        && getStatus() == MaxCapConfirmationStatus.VALUE_NOT_CONFIRMED) {
-            maxCap = proposedMaxCap;
+        if (signCount[proposedTimeLimit] == numConfirmationsRequired 
+        && getStatus() == TimeLimitConfirmationStatus.VALUE_NOT_CONFIRMED) {
+            timeLimit = proposedTimeLimit;
         }
     }
 
-    function revokeSign(uint256 proposedMaxCap)
+    function revokeSign(uint256 proposedTimeLimit)
         public
         onlySigners
-        notRevokedAlready(proposedMaxCap)
+        notRevokedAlready(proposedTimeLimit)
     {
-        signs[proposedMaxCap][msg.sender] = false;
-        signCount[proposedMaxCap] = signCount[proposedMaxCap].sub(1);
-        emit RevokedConfirmation(msg.sender, proposedMaxCap);
+        signs[proposedTimeLimit][msg.sender] = false;
+        signCount[proposedTimeLimit] = signCount[proposedTimeLimit].sub(1);
+        emit RevokedConfirmation(msg.sender, proposedTimeLimit);
     }
 
-    function getStatus() public view returns(MaxCapConfirmationStatus) {
-        if (maxCap == 0) 
-            return MaxCapConfirmationStatus.VALUE_NOT_CONFIRMED;
+    function getStatus() public view returns(TimeLimitConfirmationStatus) {
+        if (timeLimit == 0) 
+            return TimeLimitConfirmationStatus.VALUE_NOT_CONFIRMED;
         else 
-            return MaxCapConfirmationStatus.VALUE_CONFIRMED;
+            return TimeLimitConfirmationStatus.VALUE_CONFIRMED;
     }
 
-    function isMaxCapReached(uint256 balance) public 
-        statusIs(MaxCapConfirmationStatus.VALUE_CONFIRMED) 
+    function isTimeLimitReached() public 
+        statusIs(TimeLimitConfirmationStatus.VALUE_CONFIRMED) 
         view returns(bool) 
     {
-        return balance >= maxCap;
+        return block.timestamp >= timeLimit;
     }
 }
