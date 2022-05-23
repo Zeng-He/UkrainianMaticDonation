@@ -114,7 +114,7 @@ contract MultiSigWalletWhitelist {
     }
 
     /**
-     *  Once an address if confirmed and accepted it cannot be unsigned nor unaccepted
+     *  Once an address is confirmed and accepted it cannot be unsigned nor unaccepted
      */
     function acceptWalletConfirmation()
         public
