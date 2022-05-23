@@ -1,4 +1,10 @@
 require("@nomiclabs/hardhat-waffle");
+//Testing dependencies
+//npm install --save-dev @nomiclabs/hardhat-truffle5 @nomiclabs/hardhat-web3 web3
+//npm install --save-dev chai
+//npm install --save-dev chai-bn
+//npm install --save-dev chai-as-promised 
+require("@nomiclabs/hardhat-truffle5");
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html

@@ -12,15 +12,24 @@ async function main() {
   // If this script is run directly using `node` you may want to call compile
   // manually to make sure everything is compiled
   // await hre.run('compile');
-  const MATIC_TOKEN_ADDRESS = '0x0000000000000000000000000000000000001010';
+  const [deployer, signer1, signer2] = await hre.getSigners();
+  console.log("Deploying contracts with account:", deployer.address);
+
+  console.log("Deploying MultiSigMaxCap Contract...");
+  var numConfirmationsRequired = 3;
+  var initialValue = 1000;
+  const MultiSigMaxCap = await hre.ethers.getContractFactory("MultiSigMaxCap");
+  const multiSigMaxCap = await MultiSigMaxCap.deploy([deployer, signer1, signer2], numConfirmationsRequired, initialValue);
 
   // We get the contract to deploy
-  const UkrainianMaticDonation = await hre.ethers.getContractFactory("UkrainianMaticDonation");
-  const ukrainianMaticDonation = await UkrainianMaticDonation.deploy(MATIC_TOKEN_ADDRESS);
+  // const UkrainianMaticDonation = await hre.ethers.getContractFactory("UkrainianMaticDonation");
+  // const ukrainianMaticDonation = await UkrainianMaticDonation.deploy();
 
-  await ukrainianMaticDonation.deployed();
+  await multiSigMaxCap.deployed();
+  // await ukrainianMaticDonation.deployed();
 
-  console.log("UkrainianMaticDonation deployed to:", ukrainianMaticDonation.address);
+  console.log("MultiSigMaxCap deployed to:", multiSigMaxCap.address);
+  // console.log("UkrainianMaticDonation deployed to:", ukrainianMaticDonation.address);
 }
 
 // We recommend this pattern to be able to use async/await everywhere
