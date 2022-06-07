@@ -103,6 +103,8 @@ contract MultiSigMaxCap {
             return MaxCapConfirmationStatus.VALUE_CONFIRMED;
     }
 
+    //could this be called before value is confirmed causing to crash the implementing contract?
+    //maybe better to just return false when value not confirmed...
     function isMaxCapReached(uint256 balance) public 
         statusIs(MaxCapConfirmationStatus.VALUE_CONFIRMED) 
         view returns(bool) 
